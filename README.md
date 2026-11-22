@@ -23,6 +23,8 @@ door before the alarm hits 100%.
 - **WASD / arrow keys** — move (or hold the mouse button and the thief walks to it)
 - **Shift** — sneak: slower, but guards and cameras spot you half as fast
 - **E** — throw a decoy coin (-$50): the nearest guard walks off to investigate it
+- **Q** — drop a smoke puff (-$75): guards and cameras cannot see you inside the cloud
+- **F** — slip into a floor vent: crawl unseen to the paired grate on the other side
 - **P** — pause · **M** — mute · **Space / click** — start, continue, retry
 
 ## The heists
@@ -32,15 +34,18 @@ door before the alarm hits 100%.
 3. **The Crown Suite** — 4 guards, 4 cameras, 4 paintings, the crown vault.
 
 Each heist has several routes through its rooms: a loud thief can grab every
-painting, a ghost can slip straight to the vault. Paintings are worth $100, a vault
+painting, a ghost can slip straight to the vault — or crawl through the floor
+vents from one side of the gallery to the other. Paintings are worth $100, a vault
 $500. Standing by the vault cracks it open after a few seconds of work. The alarm
 rises while any guard or camera has eyes on you and falls while you stay hidden —
-at 100% the vault seals and security swarms in. A guard that reaches you ends the
+at 100% the vault seals and security swarms in. Once the vault is cracked the alarm
+stays hot while you run for the green door. Finish a heist with the alarm never
+past 50% and the crew pays a $150 ghost bonus. A guard that reaches you ends the
 run on the spot.
 
 No build step, no network requests, no libraries — plain canvas and WebAudio bleeps
 synthesized in code. Screenshots in `screenshots/` are real renders of the game,
-staged by `game/src/shots.js` (`?shot=cover|start|win|caught&seed=7`).
+staged by `game/src/shots.js` (`?shot=cover|tools|win|caught&seed=7`).
 
 ## Entry
 
