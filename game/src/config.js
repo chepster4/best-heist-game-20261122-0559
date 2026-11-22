@@ -50,8 +50,35 @@ export const ALARM = {
   max: 100,
   /** Points per second the alarm falls while nobody sees the thief. */
   decay: 8,
+  /** While the vault is cracked and the thief runs, the alarm stays hot longer. */
+  escapeDecay: 6,
   /** Alarm level where the screen starts pulsing red and the music turns tense. */
   tenseAt: 70,
+};
+
+export const SMOKE = {
+  /** Smoke puffs the thief carries into a heist. */
+  count: 2,
+  /** Score it costs to drop one: tools are never free. */
+  cost: 75,
+  /** How far a cloud reaches; a thief inside it cannot be seen. */
+  radius: 130,
+  /** Seconds a cloud hangs in the air. */
+  seconds: 3,
+};
+
+export const VENT = {
+  /** Seconds a crawl between grates takes, unseen. */
+  crawlSeconds: 1.2,
+  /** How close the thief must be to a grate to slip into it. */
+  radius: 26,
+};
+
+export const GHOST = {
+  /** A level finished with the alarm never past this pays a ghost bonus. */
+  maxAlarm: 50,
+  /** The bonus, in score, for a level nobody ever noticed. */
+  bonus: 150,
 };
 
 export const GADGET = {
@@ -151,6 +178,11 @@ export const LEVELS = [
       { x: 1000, y: 580, hue: '#4a7ac9', value: 150 },
       { x: 700, y: 600, hue: '#7ac94a', value: 250 },
     ],
+    /** Floor vents, paired: slip in one (F) and crawl out of the other, unseen. */
+    vents: [
+      { x: 140, y: 600 },
+      { x: 1140, y: 120 },
+    ],
   },
   {
     name: 'Heist 2 — The Jade Vault',
@@ -186,6 +218,11 @@ export const LEVELS = [
       { x: 640, y: 620, hue: '#4ac9b8', value: 150 },
       { x: 1120, y: 420, hue: '#c9a24a', value: 250 },
       { x: 980, y: 120, hue: '#8a4ac9', value: 200 },
+    ],
+    /** Floor vents, paired: slip in one (F) and crawl out of the other, unseen. */
+    vents: [
+      { x: 200, y: 120 },
+      { x: 1120, y: 600 },
     ],
   },
   {
@@ -226,6 +263,11 @@ export const LEVELS = [
       { x: 1120, y: 640, hue: '#4a7ac9', value: 150 },
       { x: 480, y: 480, hue: '#7ac94a', value: 200 },
       { x: 800, y: 480, hue: '#c94a7a', value: 250 },
+    ],
+    /** Floor vents, paired: slip in one (F) and crawl out of the other, unseen. */
+    vents: [
+      { x: 160, y: 380 },
+      { x: 1120, y: 380 },
     ],
   },
 ];

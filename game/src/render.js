@@ -3,7 +3,9 @@
 // colour. Canvas shapes and text only — every pixel is the game's own art: marble floor,
 // carpets, framed paintings, the gold vault, the green getaway door, guards with their
 // sweeping vision cones, cameras with theirs, and the thief in the middle of it all.
-import { ALARM, CAMERA, FIELD, FONT, GADGET, GUARD, LOOT, PALETTE, THIEF } from './config.js';
+import { ALARM, CAMERA, FIELD, FONT, GADGET, GUARD, LOOT, PALETTE, SMOKE, THIEF, VENT } from './config.js';
+import { thiefInSmoke } from './gadgets.js';
+import { thiefInVent } from './routes.js';
 
 export const SCREEN_TITLE = 'title';
 export const SCREEN_PLAY = 'play';
@@ -170,6 +172,53 @@ export function createRenderer(canvas) {
     text(open ? 'GETAWAY ▼' : 'GETAWAY (LOCKED)', exit.x, exit.y - 22, 15, open ? PALETTE.exitGlow : PALETTE.muted, 'center');
   }
 
+  function drawVents(state) {
+    for (const vent of state.vents) {
+      // A floor grate with a gold rim and a VENT tag: the second way through the
+      // room, obvious at a glance. The paired grate is the exit.
+      const crawlingHere = state.vent && state.vent.from === vent;
+      context.fillStyle = '#10131a';
+      context.fillRect(vent.x - 22, vent.y - 16, 44, 32);
+      context.strokeStyle = PALETTE.vaultGlow;
+      context.lineWidth = 2;
+      context.strokeRect(vent.x - 22, vent.y - 16, 44, 32);
+      context.strokeStyle = '#5a6474';
+      context.lineWidth = 3;
+      for (let i = -1; i <= 1; i += 1) {
+        context.beginPath();
+        context.moveTo(vent.x - 16, vent.y + i * 9);
+        context.lineTo(vent.x + 16, vent.y + i * 9);
+        context.stroke();
+      }
+      text('VENT', vent.x, vent.y - 24, 11, PALETTE.vaultGlow, 'center');
+      // Crawl progress ring while the thief is inside this grate.
+      if (crawlingHere) {
+        const progress = 1 - Math.max(0, (state.vent.until - state.elapsed) / VENT.crawlSeconds);
+        context.strokeStyle = PALETTE.vaultGlow;
+        context.lineWidth = 4;
+        context.beginPath();
+        context.arc(vent.x, vent.y, 30, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+        context.stroke();
+      }
+    }
+  }
+
+  function drawSmokes(state) {
+    for (const smoke of state.smokes) {
+      // A grey cloud thick enough to hide in: guards and cameras see nothing
+      // through it, and the thief inside it is invisible.
+      const fade = Math.min(1, (smoke.until - state.elapsed) / 0.8);
+      context.fillStyle = `rgba(139, 147, 163, ${0.34 * fade})`;
+      context.beginPath();
+      context.arc(smoke.x, smoke.y, SMOKE.radius, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = `rgba(200, 208, 220, ${0.22 * fade})`;
+      context.beginPath();
+      context.arc(smoke.x, smoke.y, SMOKE.radius * 0.62, 0, Math.PI * 2);
+      context.fill();
+    }
+  }
+
   function drawDecoys(state) {
     for (const decoy of state.decoys) {
       context.fillStyle = PALETTE.vaultGlow;
@@ -283,6 +332,11 @@ export function createRenderer(canvas) {
     if (thief.sneaking) {
       text('sneaking', thief.x, thief.y - 22, 12, PALETTE.muted, 'center');
     }
+    if (thiefInVent(state)) {
+      text('IN VENT', thief.x, thief.y - 22, 13, PALETTE.vaultGlow, 'center');
+    } else if (thiefInSmoke(state)) {
+      text('HIDDEN', thief.x, thief.y - 22, 13, '#c8d0dc', 'center');
+    }
   }
 
   function alarmColor(alarm) {
@@ -334,7 +388,14 @@ export function createRenderer(canvas) {
       context.arc(104 + i * 28, FIELD.height - 26, 9, 0, Math.PI * 2);
       context.fill();
     }
-    text('WASD / arrows move · Shift sneak · E decoy (-$50) · P pause · M mute', FIELD.width / 2, FIELD.height - 32, 15, PALETTE.muted, 'center');
+    text('SMOKE', 200, FIELD.height - 34, 16, PALETTE.muted, 'left');
+    for (let i = 0; i < SMOKE.count; i += 1) {
+      context.fillStyle = i < state.smokeLeft ? '#c8d0dc' : '#2a3040';
+      context.beginPath();
+      context.arc(272 + i * 28, FIELD.height - 26, 9, 0, Math.PI * 2);
+      context.fill();
+    }
+    text('WASD / arrows move · Shift sneak · E decoy (-$50) · Q smoke (-$75) · F vent · P pause · M mute', FIELD.width / 2, FIELD.height - 32, 15, PALETTE.muted, 'center');
     if (muted) text('MUTED', FIELD.width - 24, FIELD.height - 34, 16, PALETTE.muted, 'right');
   }
 
@@ -363,8 +424,10 @@ export function createRenderer(canvas) {
     drawPaintings(state);
     drawVault(state);
     drawDecoys(state);
+    drawVents(state);
     drawCameras(state);
     drawGuards(state);
+    drawSmokes(state);
     drawThief(state);
     drawWalls(state);
   }
@@ -412,7 +475,11 @@ export function createRenderer(canvas) {
         [
           `${state.level.name} — cleared.`,
           `Loot so far: $${state.score}   ·   Peak alarm ${Math.round(state.maxAlarm)}%`,
-          state.maxAlarm < 30 ? 'Ghost rating: nobody ever saw you.' : 'Loud rating: they knew someone was here.',
+          state.ghostBonus > 0
+            ? `GHOST BONUS +$${state.ghostBonus} — the alarm never passed 50%.`
+            : state.maxAlarm < 30
+              ? 'Ghost rating: nobody ever saw you.'
+              : 'Loud rating: they knew someone was here.',
         ],
         'Press Space or click for the next heist',
         PALETTE.exitGlow,

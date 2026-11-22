@@ -7,6 +7,8 @@ export const ACTION_CONFIRM = 1;
 export const ACTION_PAUSE = 2;
 export const ACTION_DECOY = 4;
 export const ACTION_MUTE = 8;
+export const ACTION_SMOKE = 16;
+export const ACTION_VENT = 32;
 
 const LEFT = new Set(['ArrowLeft', 'KeyA']);
 const RIGHT = new Set(['ArrowRight', 'KeyD']);
@@ -16,6 +18,8 @@ const SNEAK = new Set(['ShiftLeft', 'ShiftRight']);
 const CONFIRM = new Set(['Space', 'Enter']);
 const PAUSE = new Set(['KeyP', 'Escape']);
 const DECOY = new Set(['KeyE']);
+const SMOKE = new Set(['KeyQ']);
+const VENT = new Set(['KeyF']);
 const MUTE = new Set(['KeyM']);
 
 export function createInput(canvas) {
@@ -41,6 +45,10 @@ export function createInput(canvas) {
       if (!event.repeat) actions |= ACTION_PAUSE;
     } else if (DECOY.has(event.code)) {
       if (!event.repeat) actions |= ACTION_DECOY;
+    } else if (SMOKE.has(event.code)) {
+      if (!event.repeat) actions |= ACTION_SMOKE;
+    } else if (VENT.has(event.code)) {
+      if (!event.repeat) actions |= ACTION_VENT;
     } else if (MUTE.has(event.code)) {
       if (!event.repeat) actions |= ACTION_MUTE;
     } else return;

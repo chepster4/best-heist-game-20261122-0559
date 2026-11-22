@@ -9,11 +9,15 @@ import {
   CAMERA,
   FIELD,
   GADGET,
+  GHOST,
   GUARD,
   LEVELS,
   LOOT,
+  SMOKE,
   THIEF,
 } from './config.js';
+import { enterVent, thiefInVent } from './routes.js';
+import { thiefInSmoke, throwSmoke } from './gadgets.js';
 
 export const EVENT_PICKUP = 1;
 export const EVENT_VAULT = 2;
@@ -21,6 +25,9 @@ export const EVENT_CAUGHT = 4;
 export const EVENT_LEVEL_DONE = 8;
 export const EVENT_DECOY = 16;
 export const EVENT_SPOTTED = 32;
+export const EVENT_SMOKE = 64;
+export const EVENT_VENT = 128;
+export const EVENT_GHOST = 256;
 
 function distance(ax, ay, bx, by) {
   return Math.hypot(bx - ax, by - ay);
@@ -105,6 +112,12 @@ export function createWorld(random) {
     cameras: [],
     paintings: [],
     decoys: [],
+    vents: [],
+    smokes: [],
+    vent: null,
+    smokeLeft: SMOKE.count,
+    levelMaxAlarm: 0,
+    ghostBonus: 0,
     vaultCracked: false,
     crackProgress: 0,
     alarm: 0,
@@ -153,6 +166,12 @@ export function createWorld(random) {
     }));
     state.paintings = level.paintings.map((p) => ({ x: p.x, y: p.y, hue: p.hue, value: p.value ?? LOOT.paintingValue, taken: false }));
     state.decoys = [];
+    state.vents = level.vents.map((v) => ({ x: v.x, y: v.y }));
+    state.smokes = [];
+    state.smokeLeft = SMOKE.count;
+    state.vent = null;
+    state.levelMaxAlarm = 0;
+    state.ghostBonus = 0;
     state.vaultCracked = false;
     state.crackProgress = 0;
     state.alarm = 0;
@@ -175,6 +194,8 @@ export function createWorld(random) {
 
   /** Can the watcher at (x, y) facing `angle` see the thief right now? */
   function canSee(x, y, angle, halfAngle, range, walls) {
+    // A thief crawling through a vent or standing in smoke cannot be seen at all.
+    if (thiefInVent(state) || thiefInSmoke(state)) return false;
     const thief = state.thief;
     const dist = distance(x, y, thief.x, thief.y);
     if (dist > range) return false;
@@ -233,19 +254,32 @@ export function createWorld(random) {
 
   /**
    * One fixed step. `move` is {x, y} in -1..1, `sneak` halves speed and detection,
-   * `throwDecoy` drops a noise coin ahead of the thief. With `harmless` set (the title
-   * screen's backdrop) the world moves but nobody is ever caught and nothing scores.
+   * `throwDecoy` drops a noise coin ahead of the thief, `throwSmokeAction` drops a
+   * smoke cloud at his feet, `useVent` slips him into a nearby floor vent. With
+   * `harmless` set (the title screen's backdrop) the world moves but nobody is
+   * ever caught and nothing scores.
    */
-  function step(dt, move, sneak, throwDecoy, harmless) {
+  function step(dt, move, sneak, throwDecoy, harmless, throwSmokeAction = false, useVent = false) {
     let events = 0;
     state.elapsed += dt;
     state.levelElapsed += dt;
     const thief = state.thief;
     const walls = state.level.walls;
 
+    // Vents: a crawl finishes the moment its time is up, popping the thief out of
+    // the paired grate; a fresh press slips him in. A crawling thief cannot steer.
+    if (state.vent && state.elapsed >= state.vent.until) {
+      thief.x = state.vent.exit.x;
+      thief.y = state.vent.exit.y;
+      state.vent = null;
+    }
+    if (useVent && !state.vent && !harmless) {
+      if (enterVent(state)) events |= EVENT_VENT;
+    }
+
     // Thief movement.
     const len = Math.hypot(move.x, move.y);
-    thief.moving = len > 0.01;
+    thief.moving = len > 0.01 && !state.vent;
     if (thief.moving) {
       const speed = (sneak ? THIEF.sneakSpeed : THIEF.speed) * dt;
       const nx = (move.x / len) * speed;
@@ -282,6 +316,12 @@ export function createWorld(random) {
       events |= EVENT_DECOY;
     }
     state.decoys = state.decoys.filter((d) => state.elapsed < d.until);
+
+    // Smoke: costs score, hides the thief inside its cloud for a few seconds.
+    if (throwSmokeAction && state.smokeLeft > 0 && !harmless) {
+      if (throwSmoke(state)) events |= EVENT_SMOKE;
+    }
+    state.smokes = state.smokes.filter((s) => state.elapsed < s.until);
 
     // Cameras sweep.
     for (const camera of state.cameras) {
@@ -326,9 +366,12 @@ export function createWorld(random) {
       state.alarm = Math.min(ALARM.max, state.alarm + alarmGain * dt);
     } else {
       state.wasSeen = false;
-      state.alarm = Math.max(0, state.alarm - ALARM.decay * dt);
+      // Once the vault is cracked the alarm stays hot while the thief runs.
+      const decay = state.vaultCracked ? ALARM.escapeDecay : ALARM.decay;
+      state.alarm = Math.max(0, state.alarm - decay * dt);
     }
     state.maxAlarm = Math.max(state.maxAlarm, state.alarm);
+    state.levelMaxAlarm = Math.max(state.levelMaxAlarm, state.alarm);
 
     // A guard that reaches the thief ends the run.
     if (!harmless) {
@@ -370,10 +413,19 @@ export function createWorld(random) {
       }
     }
 
-    // The getaway: the green door only opens once the vault is cracked.
+    // The getaway: the green door only opens once the vault is cracked. A level
+    // finished with the alarm never past the ghost line pays a ghost bonus — the
+    // getaway pays off the planning.
     if (!harmless && state.vaultCracked) {
       const exit = state.level.exit;
       if (distance(thief.x, thief.y, exit.x, exit.y) < 42) {
+        if (state.levelMaxAlarm < GHOST.maxAlarm) {
+          state.score += GHOST.bonus;
+          state.ghostBonus = GHOST.bonus;
+          events |= EVENT_GHOST;
+        } else {
+          state.ghostBonus = 0;
+        }
         if (state.levelIndex + 1 >= LEVELS.length) {
           state.gameWon = true;
         } else {

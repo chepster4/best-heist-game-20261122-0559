@@ -5,7 +5,7 @@
 // like and the same seed always gives the same frame. The win and caught scenes play
 // until the game really ends, and only then — if the autopilot ran out of time — stage
 // the ending state through the world's own fields, so the render is still the game's.
-import { ALARM, FIELD, LOOT, STEP, THIEF } from './config.js';
+import { ALARM, FIELD, GADGET, GHOST, LOOT, SMOKE, STEP, THIEF } from './config.js';
 import {
   EVENT_CAUGHT,
   EVENT_LEVEL_DONE,
@@ -189,7 +189,7 @@ function autopilot(state, reckless) {
   return best;
 }
 
-function runWorld(world, seconds, reckless) {
+export function runWorld(world, seconds, reckless) {
   const steps = Math.floor(seconds / STEP);
   for (let index = 0; index < steps; index += 1) {
     const dir = autopilot(world.state, reckless);
@@ -207,7 +207,7 @@ function runWorld(world, seconds, reckless) {
  */
 export function stageShot(name, world) {
   world.reset();
-  if (name !== 'cover' && name !== 'win' && name !== 'caught') {
+  if (name !== 'cover' && name !== 'win' && name !== 'caught' && name !== 'tools') {
     for (let index = 0; index < START_SECONDS / STEP; index += 1) {
       world.step(STEP, { x: 0, y: 0 }, false, false, true);
     }
@@ -252,6 +252,47 @@ export function stageShot(name, world) {
       state.alarm = 46;
       state.maxAlarm = Math.max(state.maxAlarm, state.alarm);
     }
+    // A decoy in play: one guard has left his patrol to investigate the ringing
+    // coin, so the frame shows a tool being used, not just held.
+    const decoy = { x: 760, y: 300, until: state.elapsed + GADGET.distractSeconds };
+    state.decoys.push(decoy);
+    if (state.guards.length > 0) {
+      const guard = state.guards[0];
+      guard.investigating = true;
+      guard.investigateX = decoy.x;
+      guard.investigateY = decoy.y;
+      guard.distractUntil = decoy.until;
+      guard.suspicion = 0;
+      guard.angle = Math.atan2(decoy.y - guard.y, decoy.x - guard.x);
+    }
+    return { screen: SCREEN_PLAY, best: 1250 };
+  }
+  if (name === 'tools') {
+    // The tools shot: the thief inside a fresh smoke cloud beside a vent, a decoy
+    // ringing with a guard walking to it — every tool in the game, in one frame.
+    runWorld(world, 12, false);
+    const state = world.state;
+    const vent = state.vents[0];
+    state.thief.x = vent.x + 44;
+    state.thief.y = vent.y - 8;
+    state.thief.angle = -Math.PI / 2;
+    state.smokes.push({ x: state.thief.x, y: state.thief.y, until: state.elapsed + SMOKE.seconds });
+    state.smokeLeft = Math.max(0, state.smokeLeft - 1);
+    const decoy = { x: 760, y: 300, until: state.elapsed + GADGET.distractSeconds };
+    state.decoys.push(decoy);
+    if (state.guards.length > 0) {
+      const guard = state.guards[0];
+      guard.investigating = true;
+      guard.investigateX = decoy.x;
+      guard.investigateY = decoy.y;
+      guard.distractUntil = decoy.until;
+      guard.suspicion = 0;
+      guard.angle = Math.atan2(decoy.y - guard.y, decoy.x - guard.x);
+    }
+    if (state.alarm < 25 || state.alarm > 40) {
+      state.alarm = 30;
+      state.maxAlarm = Math.max(state.maxAlarm, state.alarm);
+    }
     return { screen: SCREEN_PLAY, best: 1250 };
   }
   if (name === 'win') {
@@ -272,6 +313,7 @@ export function stageShot(name, world) {
       state.thief.y = state.level.exit.y - 30;
       state.levelDone = true;
       state.maxAlarm = Math.max(state.maxAlarm, 18);
+      if (state.levelMaxAlarm < GHOST.maxAlarm) state.score += GHOST.bonus;
     } else if (state.gameWon) {
       return { screen: SCREEN_WIN, best: state.score };
     }

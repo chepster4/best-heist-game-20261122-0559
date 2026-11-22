@@ -8,8 +8,8 @@
 // window.__shotReady for a screenshot.
 import { BEST_KEY, STEP } from './config.js';
 import { createRandom } from './random.js';
-import { createWorld, EVENT_CAUGHT, EVENT_DECOY, EVENT_LEVEL_DONE, EVENT_PICKUP, EVENT_SPOTTED, EVENT_VAULT } from './world.js';
-import { ACTION_CONFIRM, ACTION_DECOY, ACTION_MUTE, ACTION_PAUSE, createInput } from './input.js';
+import { createWorld, EVENT_CAUGHT, EVENT_DECOY, EVENT_GHOST, EVENT_LEVEL_DONE, EVENT_PICKUP, EVENT_SMOKE, EVENT_SPOTTED, EVENT_VAULT, EVENT_VENT } from './world.js';
+import { ACTION_CONFIRM, ACTION_DECOY, ACTION_MUTE, ACTION_PAUSE, ACTION_SMOKE, ACTION_VENT, createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createRenderer, SCREEN_LEVEL, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_WIN } from './render.js';
 import { stageShot } from './shots.js';
@@ -134,7 +134,7 @@ function runGame() {
     }
     const move = input.move(world.state.thief.x, world.state.thief.y, renderer.toField);
     const prevScore = world.state.score;
-    const events = world.step(STEP, move, input.sneaking(), Boolean(actions & ACTION_DECOY), false);
+    const events = world.step(STEP, move, input.sneaking(), Boolean(actions & ACTION_DECOY), false, Boolean(actions & ACTION_SMOKE), Boolean(actions & ACTION_VENT));
     if (events & EVENT_PICKUP) {
       audio.pickup();
       flash = { message: `Loot pocketed! +$${world.state.score - prevScore}`, color: '#f2c94c', until: world.state.elapsed + 2.5 };
@@ -144,6 +144,12 @@ function runGame() {
     } else if (events & EVENT_DECOY) {
       audio.decoy();
       flash = { message: 'Decoy thrown — the guard goes to look (-$50)', color: '#8b93a3', until: world.state.elapsed + 2.5 };
+    } else if (events & EVENT_SMOKE) {
+      flash = { message: 'Smoke out — hidden inside the cloud (-$75)', color: '#8b93a3', until: world.state.elapsed + 2.5 };
+    } else if (events & EVENT_VENT) {
+      flash = { message: 'Through the vent — they lost you', color: '#51cf66', until: world.state.elapsed + 2.5 };
+    } else if (events & EVENT_GHOST) {
+      flash = { message: 'GHOST BONUS +$150 — the alarm never passed 50%', color: '#f2c94c', until: world.state.elapsed + 3 };
     } else if (events & EVENT_SPOTTED) {
       audio.spotted();
       flash = { message: 'SPOTTED — break line of sight!', color: '#e5534b', until: world.state.elapsed + 2 };
