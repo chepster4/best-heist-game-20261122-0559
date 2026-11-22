@@ -72,6 +72,8 @@ export const LOOT = {
   vaultValue: 500,
   /** Radius inside which a painting is pocketed. */
   grabRadius: 30,
+  /** Per-painting values: the small canvas is cheap, the big canvas pays. */
+  paintingValues: [100, 150, 250],
 };
 
 export const PALETTE = {
@@ -145,9 +147,9 @@ export const LEVELS = [
       { x: 1250, y: 420, baseAngle: Math.PI },
     ],
     paintings: [
-      { x: 300, y: 120, hue: '#c96a4a' },
-      { x: 1000, y: 580, hue: '#4a7ac9' },
-      { x: 700, y: 600, hue: '#7ac94a' },
+      { x: 300, y: 120, hue: '#c96a4a', value: 100 },
+      { x: 1000, y: 580, hue: '#4a7ac9', value: 150 },
+      { x: 700, y: 600, hue: '#7ac94a', value: 250 },
     ],
   },
   {
@@ -180,10 +182,10 @@ export const LEVELS = [
       { x: 1250, y: 240, baseAngle: Math.PI },
     ],
     paintings: [
-      { x: 300, y: 120, hue: '#c94a7a' },
-      { x: 640, y: 620, hue: '#4ac9b8' },
-      { x: 1120, y: 420, hue: '#c9a24a' },
-      { x: 980, y: 120, hue: '#8a4ac9' },
+      { x: 300, y: 120, hue: '#c94a7a', value: 100 },
+      { x: 640, y: 620, hue: '#4ac9b8', value: 150 },
+      { x: 1120, y: 420, hue: '#c9a24a', value: 250 },
+      { x: 980, y: 120, hue: '#8a4ac9', value: 200 },
     ],
   },
   {
@@ -220,10 +222,10 @@ export const LEVELS = [
       { x: 640, y: 690, baseAngle: -Math.PI / 2 },
     ],
     paintings: [
-      { x: 160, y: 640, hue: '#c96a4a' },
-      { x: 1120, y: 640, hue: '#4a7ac9' },
-      { x: 480, y: 480, hue: '#7ac94a' },
-      { x: 800, y: 480, hue: '#c94a7a' },
+      { x: 160, y: 640, hue: '#c96a4a', value: 100 },
+      { x: 1120, y: 640, hue: '#4a7ac9', value: 150 },
+      { x: 480, y: 480, hue: '#7ac94a', value: 200 },
+      { x: 800, y: 480, hue: '#c94a7a', value: 250 },
     ],
   },
 ];

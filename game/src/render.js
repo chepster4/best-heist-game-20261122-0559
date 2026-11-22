@@ -71,6 +71,15 @@ export function createRenderer(canvas) {
     context.arc(x, y, range, angle - halfAngle, angle + halfAngle);
     context.closePath();
     context.fill();
+    // Bright edges so the cone reads as a shape, not a faint blob.
+    context.strokeStyle = fill.replace(/[\d.]+\)$/, '0.55)');
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(x, y);
+    context.lineTo(x + Math.cos(angle - halfAngle) * range, y + Math.sin(angle - halfAngle) * range);
+    context.moveTo(x, y);
+    context.lineTo(x + Math.cos(angle + halfAngle) * range, y + Math.sin(angle + halfAngle) * range);
+    context.stroke();
   }
 
   function drawFloor(state) {
@@ -100,15 +109,20 @@ export function createRenderer(canvas) {
   }
 
   function drawPaintings(state) {
+    const pulse = 0.5 + 0.5 * Math.sin(state.elapsed * 3);
     for (const painting of state.paintings) {
       if (painting.taken) continue;
+      // Big frame + glowing value tag, so loot is obvious from across the room.
+      context.fillStyle = `rgba(242, 201, 76, ${0.25 + 0.35 * pulse})`;
+      context.fillRect(painting.x - 32, painting.y - 26, 64, 52);
       context.fillStyle = PALETTE.paintingFrame;
-      context.fillRect(painting.x - 22, painting.y - 16, 44, 32);
+      context.fillRect(painting.x - 28, painting.y - 20, 56, 40);
       context.fillStyle = painting.hue;
-      context.fillRect(painting.x - 17, painting.y - 11, 34, 22);
+      context.fillRect(painting.x - 22, painting.y - 14, 44, 28);
       // A gold glint so loot is obvious from across the room.
       context.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      context.fillRect(painting.x - 17, painting.y - 11, 34, 4);
+      context.fillRect(painting.x - 22, painting.y - 14, 44, 5);
+      text(`$${painting.value ?? LOOT.paintingValue}`, painting.x, painting.y + 38, 15, PALETTE.vaultGlow, 'center');
     }
   }
 
@@ -172,47 +186,65 @@ export function createRenderer(canvas) {
 
   function drawCameras(state) {
     for (const camera of state.cameras) {
-      drawCone(camera.x, camera.y, camera.angle, CAMERA.halfAngle, CAMERA.sightRange, camera.seen ? 'rgba(229, 83, 75, 0.22)' : PALETTE.cameraCone);
-      // The camera body on its wall, with a red eye while it watches the thief.
+      drawCone(camera.x, camera.y, camera.angle, CAMERA.halfAngle, CAMERA.sightRange, camera.seen ? 'rgba(229, 83, 75, 0.30)' : 'rgba(79, 195, 247, 0.24)');
+      // Wall mount bracket, then a bigger body with a blinking red eye, so the
+      // camera reads as a camera instead of a dot on the wall.
+      context.fillStyle = '#5a6474';
+      context.fillRect(camera.x - 4, camera.y - 16, 8, 8);
       context.fillStyle = PALETTE.camera;
       context.beginPath();
-      context.arc(camera.x, camera.y, 10, 0, Math.PI * 2);
+      context.arc(camera.x, camera.y, 13, 0, Math.PI * 2);
       context.fill();
-      context.fillStyle = camera.seen ? '#e5534b' : '#e5534b';
+      context.strokeStyle = '#eef1f5';
+      context.lineWidth = 2;
       context.beginPath();
-      context.arc(camera.x + Math.cos(camera.angle) * 6, camera.y + Math.sin(camera.angle) * 6, 3.5, 0, Math.PI * 2);
+      context.arc(camera.x, camera.y, 13, 0, Math.PI * 2);
+      context.stroke();
+      const blink = camera.seen || Math.sin(state.elapsed * 4) > 0;
+      context.fillStyle = blink ? '#ff3b30' : '#7a2020';
+      context.beginPath();
+      context.arc(camera.x + Math.cos(camera.angle) * 8, camera.y + Math.sin(camera.angle) * 8, 4.5, 0, Math.PI * 2);
       context.fill();
+      text('CAM', camera.x, camera.y + 28, 11, camera.seen ? '#e5534b' : PALETTE.muted, camera.x > 1100 ? 'right' : camera.x < 180 ? 'left' : 'center');
     }
   }
 
   function drawGuards(state) {
     for (const guard of state.guards) {
       const alerted = guard.suspicion >= 60 || guard.investigating || state.elapsed < guard.distractUntil;
-      drawCone(guard.x, guard.y, guard.angle, GUARD.halfAngle, GUARD.sightRange, guard.seen ? PALETTE.coneAlert : PALETTE.cone);
+      drawCone(guard.x, guard.y, guard.angle, GUARD.halfAngle, GUARD.sightRange, guard.seen ? PALETTE.coneAlert : 'rgba(242, 201, 76, 0.28)');
       // Suspicion arc above the guard's head.
       if (guard.suspicion > 0) {
         context.strokeStyle = guard.suspicion >= 60 ? '#e5534b' : '#f2c94c';
         context.lineWidth = 5;
         context.beginPath();
-        context.arc(guard.x, guard.y, 24, -Math.PI / 2, -Math.PI / 2 + (guard.suspicion / 100) * Math.PI * 2);
+        context.arc(guard.x, guard.y, 26, -Math.PI / 2, -Math.PI / 2 + (guard.suspicion / 100) * Math.PI * 2);
         context.stroke();
       }
-      context.fillStyle = alerted ? PALETTE.guardAlert : PALETTE.guard;
+      // Bigger body with a cap brim and a bright ring, so the guard reads at a glance.
+      const bodyR = GUARD.radius + 5;
+      context.fillStyle = alerted ? PALETTE.guardAlert : '#3f6db3';
       context.beginPath();
-      context.arc(guard.x, guard.y, guard.radius, 0, Math.PI * 2);
+      context.arc(guard.x, guard.y, bodyR, 0, Math.PI * 2);
       context.fill();
       context.strokeStyle = '#dfe6f2';
-      context.lineWidth = 2;
+      context.lineWidth = 2.5;
       context.beginPath();
-      context.arc(guard.x, guard.y, guard.radius, 0, Math.PI * 2);
+      context.arc(guard.x, guard.y, bodyR, 0, Math.PI * 2);
       context.stroke();
-      // Facing tick and cap brim.
+      // Cap brim facing where the guard looks.
       context.strokeStyle = '#dfe6f2';
       context.lineWidth = 3;
       context.beginPath();
       context.moveTo(guard.x, guard.y);
-      context.lineTo(guard.x + Math.cos(guard.angle) * (guard.radius + 7), guard.y + Math.sin(guard.angle) * (guard.radius + 7));
+      context.lineTo(guard.x + Math.cos(guard.angle) * (bodyR + 8), guard.y + Math.sin(guard.angle) * (bodyR + 8));
       context.stroke();
+      // "?" while suspicious, "!" while chasing — the guard's state at a glance.
+      if (guard.investigating || guard.suspicion >= 60) {
+        text('!', guard.x, guard.y - bodyR - 12, 22, '#e5534b', 'center');
+      } else if (guard.suspicion > 0) {
+        text('?', guard.x, guard.y - bodyR - 12, 20, '#f2c94c', 'center');
+      }
     }
   }
 
@@ -223,6 +255,12 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.ellipse(thief.x, thief.y + 10, 15, 6, 0, 0, Math.PI * 2);
     context.fill();
+    // Gold halo so the thief pops out of the dark floor.
+    context.strokeStyle = 'rgba(242, 201, 76, 0.85)';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.arc(thief.x, thief.y, thief.radius + 5, 0, Math.PI * 2);
+    context.stroke();
     context.fillStyle = PALETTE.thief;
     context.beginPath();
     context.arc(thief.x, thief.y, thief.radius, 0, Math.PI * 2);
@@ -276,6 +314,12 @@ export function createRenderer(canvas) {
     context.lineWidth = 2;
     context.strokeRect(barX, barY, barW, 20);
     text(`${Math.round(state.alarm)}%`, barX + barW + 10, barY + 1, 18, alarmColor(state.alarm), 'left');
+    // Objective tracker under the alarm bar: what is left to steal, at a glance.
+    const lootTotal = state.paintings.length + 1;
+    const lootGot = state.lootTaken;
+    const vaultText = state.vaultCracked ? 'VAULT CRACKED' : 'VAULT LOCKED';
+    const tierText = state.alarm >= ALARM.tenseAt ? ' · Alarm critical — break line of sight!' : state.alarm >= 50 ? ' · Alarm rising — break line of sight' : '';
+    text(`LOOT ${lootGot}/${lootTotal} · ${vaultText}${tierText}`, FIELD.width / 2, barY + 30, 16, state.vaultCracked ? PALETTE.exitGlow : PALETTE.hud, 'center');
     if (state.alarm >= ALARM.tenseAt) {
       const pulse = 0.25 + 0.2 * Math.sin(state.elapsed * 10);
       context.fillStyle = `rgba(229, 83, 75, ${pulse})`;

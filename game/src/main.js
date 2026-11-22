@@ -133,10 +133,11 @@ function runGame() {
       return;
     }
     const move = input.move(world.state.thief.x, world.state.thief.y, renderer.toField);
+    const prevScore = world.state.score;
     const events = world.step(STEP, move, input.sneaking(), Boolean(actions & ACTION_DECOY), false);
     if (events & EVENT_PICKUP) {
       audio.pickup();
-      flash = { message: 'Loot pocketed! +$100', color: '#f2c94c', until: world.state.elapsed + 2.5 };
+      flash = { message: `Loot pocketed! +$${world.state.score - prevScore}`, color: '#f2c94c', until: world.state.elapsed + 2.5 };
     } else if (events & EVENT_VAULT) {
       audio.vault();
       flash = { message: 'VAULT CRACKED — get to the green door!', color: '#51cf66', until: world.state.elapsed + 3 };

@@ -215,15 +215,41 @@ export function stageShot(name, world) {
   }
   if (name === 'cover') {
     runWorld(world, COVER_SECONDS, false);
-    // Make sure the frame shows the alarm meter partway up and some loot banked.
+    // Curate the money shot so every required element reads in one frame: the
+    // thief mid-room on the carpet, a guard cone crossing his path, a camera cone
+    // sweeping the middle, loot still on the walls, alarm partway up.
     const state = world.state;
+    if (state.thief.y < 200 || state.thief.y > 560 || state.thief.x < 300 || state.thief.x > 980) {
+      state.thief.x = 640;
+      state.thief.y = 420;
+      state.thief.angle = -Math.PI / 2;
+    }
+    // Point the nearest guard's cone at the thief and the other guard across the room.
+    for (const guard of state.guards) {
+      guard.angle = Math.atan2(state.thief.y - guard.y, state.thief.x - guard.x);
+    }
+    // Swing the first camera's cone toward the middle of the room.
+    if (state.cameras.length > 0) {
+      const cam = state.cameras[0];
+      cam.angle = Math.atan2(360 - cam.y, 640 - cam.x);
+    }
+    // Keep at least two paintings on the walls as visible loot targets.
+    const untaken = state.paintings.filter((p) => !p.taken);
+    if (untaken.length < 2) {
+      const restore = state.paintings[state.paintings.length - 1];
+      if (restore.taken) {
+        restore.taken = false;
+        state.score = Math.max(0, state.score - restore.value);
+        state.lootTaken = Math.max(0, state.lootTaken - 1);
+      }
+    }
     if (state.score === 0 && state.paintings.some((p) => !p.taken)) {
       state.paintings[0].taken = true;
-      state.score += LOOT.paintingValue;
+      state.score += state.paintings[0].value;
       state.lootTaken += 1;
     }
-    if (state.alarm < 25) {
-      state.alarm = 32 + Math.min(20, state.maxAlarm);
+    if (state.alarm < 40 || state.alarm > 55) {
+      state.alarm = 46;
       state.maxAlarm = Math.max(state.maxAlarm, state.alarm);
     }
     return { screen: SCREEN_PLAY, best: 1250 };

@@ -151,7 +151,7 @@ export function createWorld(random) {
       phase: random() * Math.PI * 2,
       seen: false,
     }));
-    state.paintings = level.paintings.map((p) => ({ x: p.x, y: p.y, hue: p.hue, taken: false }));
+    state.paintings = level.paintings.map((p) => ({ x: p.x, y: p.y, hue: p.hue, value: p.value ?? LOOT.paintingValue, taken: false }));
     state.decoys = [];
     state.vaultCracked = false;
     state.crackProgress = 0;
@@ -349,7 +349,7 @@ export function createWorld(random) {
       for (const painting of state.paintings) {
         if (!painting.taken && distance(thief.x, thief.y, painting.x, painting.y) < LOOT.grabRadius) {
           painting.taken = true;
-          state.score += LOOT.paintingValue;
+          state.score += painting.value;
           state.lootTaken += 1;
           events |= EVENT_PICKUP;
         }
